@@ -28,7 +28,7 @@ modePack (forge)
 
 modePack (manual)
   - config.json 
-    - type: 'FORGE'
+    - type: 'MANUAL'
     - manualMcVersion: string
   - version.json
   - libraries.zip

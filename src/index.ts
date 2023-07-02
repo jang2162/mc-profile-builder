@@ -7,6 +7,7 @@ import process from 'process';
 import readline from 'readline/promises';
 import axios from 'axios';
 import extract from 'extract-zip';
+import imageToBase64 from 'image-to-base64';
 import {rimraf} from 'rimraf';
 import {v4 as uuid4} from 'uuid';
 
@@ -112,6 +113,17 @@ async function run(dirName: string){
     }
     const gameDir = path.join(profileDirPath, profileDirName + (profileDirIdx > 0 ? `_${profileDirIdx}` : ''))
 
+    const defaultImagePath = path.join(tempDirPath, 'build-tools', 'icon-default.png')
+    const modePackImagePath = path.join(modePackPath, 'icon.png')
+    let defaultImage = null;
+    let modePackImage = null;
+    try {
+        defaultImage = await fsp.stat(defaultImagePath)
+    } catch (e) {/* empty */}
+    try {
+        modePackImage = await fsp.stat(modePackImagePath)
+    } catch (e) { /* empty */ }
+    const curImagePath = modePackImage != null && modePackImage.isFile() ? modePackImagePath : defaultImage != null && defaultImage.isFile() ? defaultImagePath : null
     profileConfig.profiles = {
         ...profileConfig.profiles,
         [uuid4().replace(/-/g, '')] : {
@@ -119,7 +131,8 @@ async function run(dirName: string){
             name : profileName,
             gameDir,
             type : 'custom',
-            created : new Date().toISOString()
+            created : new Date().toISOString(),
+            ...(curImagePath ? {icon: `data:image/png;base64,${await imageToBase64(curImagePath)}`} : {})
         }
     }
     console.log('프로파일 생성 중..');
