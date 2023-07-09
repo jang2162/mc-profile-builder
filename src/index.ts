@@ -186,6 +186,7 @@ async function selectModPack(modPackPath) : Promise<string>{
         }
         console.log('');
         const i = parseInt(await rl.question(`설치할 모드팩을 선택해 주세요. (1 ~ ${filenames.length}) : `));
+        console.log('');
         if (isNaN(i) || i < 1 || i > filenames.length) {
             console.log('잘못된 입력입니다.');
             return await selectModPack(modPackPath);
