@@ -15,43 +15,43 @@ const rl = readline.createInterface({
     input:process.stdin,
     output:process.stdout
 });
-const modPackDirPath = path.join(process.cwd(), 'modePacks')
+const modPackDirPath = path.join(process.cwd(), 'modpacks')
 const profileDirPath = path.join(process.cwd(), 'profiles')
 const minecraftPath = path.join(process.env.APPDATA, '.minecraft')
-const tempPath = path.join(os.tmpdir(), 'mc-profile-builder')
+const tempPath = path.join(os.tmpdir(), 'mc-modpack-installer')
 const tempDirPath = path.join(tempPath, uuid4())
 const java = path.join(tempDirPath, 'build-tools', 'jre', 'bin', 'java.exe')
 const forgeCLI = path.join(tempDirPath, 'build-tools', 'ForgeCLI-1.0.1.jar')
 const fabricInstaller = path.join(tempDirPath, 'build-tools', 'fabric-installer-0.11.2.jar')
 
 
-interface ModePackConfigBase {
+interface ModpackConfigBase {
     type: 'MANUAL' | 'FORGE' | 'FABRIC' | 'VANILLA',
     versionId: string
     profileName: string
 }
-interface ModePackConfigManual extends ModePackConfigBase{
+interface ModpackConfigManual extends ModpackConfigBase{
     type: 'MANUAL',
     manualMcVersion: string
 }
-interface ModePackConfigForge extends ModePackConfigBase{
+interface ModpackConfigForge extends ModpackConfigBase{
     type: 'FORGE',
 }
-interface ModePackConfigVanilla extends ModePackConfigBase{
+interface ModpackConfigVanilla extends ModpackConfigBase{
     type: 'VANILLA',
 }
-interface ModePackConfigFabric extends ModePackConfigBase{
+interface ModpackConfigFabric extends ModpackConfigBase{
     type: 'FABRIC',
     fabricMcVersion: string
     fabricLoaderVersion: string
 }
-type ModePackConfig = ModePackConfigManual | ModePackConfigForge | ModePackConfigFabric | ModePackConfigVanilla
+type ModpackConfig = ModpackConfigManual | ModpackConfigForge | ModpackConfigFabric | ModpackConfigVanilla
 
 async function run(dirName: string){
     await rimraf(tempPath)
     console.log('##########################################');
     console.log('');
-    console.log('마인크래프트 프로파일 빌더');
+    console.log('마인크래프트 모드팩 설치기');
     console.log('');
     console.log('##########################################');
     console.log('');
@@ -60,24 +60,24 @@ async function run(dirName: string){
     await fsp.mkdir(profileDirPath, {recursive: true})
     await extract(path.join(dirName, './buildTools.zip'), {dir: path.join(tempDirPath, 'build-tools')})
 
-    const modePackFile = await selectModPack(modPackDirPath)
-    const modePackPath = path.join(tempDirPath, 'mode-pack')
+    const modpackFile = await selectModPack(modPackDirPath)
+    const modpackPath = path.join(tempDirPath, 'modpack')
     console.log('선택한 모드팩 압축 해제중..');
-    await extract(path.join(modPackDirPath, modePackFile), {dir: modePackPath})
-    const modePackConfigBuf = await fsp.readFile(path.join(modePackPath, 'config.json'))
-    const modePackConfig: ModePackConfig = JSON.parse(modePackConfigBuf.toString())
-    console.log(`모드팩 ${modePackConfig.profileName} 설치 진행..`);
+    await extract(path.join(modPackDirPath, modpackFile), {dir: modpackPath})
+    const modpackConfigBuf = await fsp.readFile(path.join(modpackPath, 'config.json'))
+    const modpackConfig: ModpackConfig = JSON.parse(modpackConfigBuf.toString())
+    console.log(`모드팩 ${modpackConfig.profileName} 설치 진행..`);
 
-    if (modePackConfig.type === 'FABRIC') {
-        await installFabric(modePackConfig.versionId, modePackConfig.fabricMcVersion, modePackConfig.fabricLoaderVersion)
-    } else if (modePackConfig.type === 'FORGE') {
-        await installForge(modePackConfig.versionId)
+    if (modpackConfig.type === 'FABRIC') {
+        await installFabric(modpackConfig.versionId, modpackConfig.fabricMcVersion, modpackConfig.fabricLoaderVersion)
+    } else if (modpackConfig.type === 'FORGE') {
+        await installForge(modpackConfig.versionId)
 
-    } else if (modePackConfig.type === 'MANUAL') {
-        await installModLoaderManual(modePackConfig.versionId, modePackConfig.manualMcVersion)
-    } else if (modePackConfig.type === 'VANILLA') {
+    } else if (modpackConfig.type === 'MANUAL') {
+        await installModLoaderManual(modpackConfig.versionId, modpackConfig.manualMcVersion)
+    } else if (modpackConfig.type === 'VANILLA') {
         console.log('Vanilla 설치 중..');
-        console.log(`versionId: ${modePackConfig.versionId}`);
+        console.log(`versionId: ${modpackConfig.versionId}`);
     } else {
         throw '알수없는 모드팩'
     }
@@ -91,14 +91,14 @@ async function run(dirName: string){
     while (fg) {
         fg = false
         for(const profileKey in profileConfig.profiles) {
-            if (profileConfig.profiles[profileKey].name === modePackConfig.profileName + (profileNameIdx > 1 ? ` (${profileNameIdx})` : '')) {
+            if (profileConfig.profiles[profileKey].name === modpackConfig.profileName + (profileNameIdx > 1 ? ` (${profileNameIdx})` : '')) {
                 profileNameIdx++
                 fg = true
                 break
             }
         }
     }
-    const profileName = modePackConfig.profileName + (profileNameIdx > 1 ? ` (${profileNameIdx})` : '')
+    const profileName = modpackConfig.profileName + (profileNameIdx > 1 ? ` (${profileNameIdx})` : '')
     const profileDirName = profileName.replace(/[/\\]/g, '_').replace(/^\.+/, '_')
     const profileDirs = await fsp.readdir(profileDirPath)
     let profileDirIdx = 0
@@ -114,20 +114,20 @@ async function run(dirName: string){
     const gameDir = path.join(profileDirPath, profileDirName + (profileDirIdx > 0 ? `_${profileDirIdx}` : ''))
 
     const defaultImagePath = path.join(tempDirPath, 'build-tools', 'icon-default.png')
-    const modePackImagePath = path.join(modePackPath, 'icon.png')
+    const modpackImagePath = path.join(modpackPath, 'icon.png')
     let defaultImage = null;
-    let modePackImage = null;
+    let modpackImage = null;
     try {
         defaultImage = await fsp.stat(defaultImagePath)
     } catch (e) {/* empty */}
     try {
-        modePackImage = await fsp.stat(modePackImagePath)
+        modpackImage = await fsp.stat(modpackImagePath)
     } catch (e) { /* empty */ }
-    const curImagePath = modePackImage != null && modePackImage.isFile() ? modePackImagePath : defaultImage != null && defaultImage.isFile() ? defaultImagePath : null
+    const curImagePath = modpackImage != null && modpackImage.isFile() ? modpackImagePath : defaultImage != null && defaultImage.isFile() ? defaultImagePath : null
     profileConfig.profiles = {
         ...profileConfig.profiles,
         [uuid4().replace(/-/g, '')] : {
-            lastVersionId : modePackConfig.versionId,
+            lastVersionId : modpackConfig.versionId,
             name : profileName,
             gameDir,
             type : 'custom',
@@ -138,7 +138,7 @@ async function run(dirName: string){
     console.log('프로파일 생성 중..');
     await fsp.writeFile(profileConfigPath, JSON.stringify(profileConfig));
     console.log('프로파일 초기화 중..');
-    await extract(path.join(modePackPath, 'init.zip'), {dir: gameDir})
+    await extract(path.join(modpackPath, 'init.zip'), {dir: gameDir})
     console.log('');
     console.log('##########################################');
     console.log('');
@@ -156,7 +156,7 @@ async function installFabric(versionId: string, mcVersion: string, loaderVersion
 async function installForge(versionId: string) {
     console.log('Forge( 설치 중..');
     console.log(`versionId: ${versionId}`);
-    await runJava('-jar', forgeCLI, '--installer', path.join(tempDirPath, 'mode-pack', 'forge-installer.jar'), '--target', minecraftPath)
+    await runJava('-jar', forgeCLI, '--installer', path.join(tempDirPath, 'modpack', 'forge-installer.jar'), '--target', minecraftPath)
 }
 async function installModLoaderManual(versionId: string, mcVersion: string) {
     console.log('ModLoader 설치 중..');
@@ -173,22 +173,29 @@ async function installModLoaderManual(versionId: string, mcVersion: string) {
     const versionMetadata: any = response.data;
     await download(versionMetadata.downloads.client.url, path.join(minecraftPath, 'versions', versionId, `${versionId}.jar`));
 
-    await fsp.copyFile(path.join(tempDirPath, 'mode-pack', 'version.json'), path.join(minecraftPath, 'versions', versionId, `${versionId}.json`))
-    await extract(path.join(tempDirPath, 'mode-pack', 'libraries.zip'), {dir: path.join(minecraftPath, 'libraries')})
+    await fsp.copyFile(path.join(tempDirPath, 'modpack', 'version.json'), path.join(minecraftPath, 'versions', versionId, `${versionId}.json`))
+    await extract(path.join(tempDirPath, 'modpack', 'libraries.zip'), {dir: path.join(minecraftPath, 'libraries')})
 }
 
 async function selectModPack(modPackPath) : Promise<string>{
     const filenames = (await fsp.readdir(modPackPath, {withFileTypes: true})).filter(file => file.name.toLowerCase().endsWith('.zip')).map(file => file.name)
-    for(const i in filenames){
-        console.log(`  ${parseInt(i)+1}: ${filenames[i]}`);
-    }
     console.log('');
-    const i = parseInt(await rl.question(`적용할 프로파일을 선택해 주세요. (1 ~ ${filenames.length}) : `));
-    if (isNaN(i) || i < 1 || i > filenames.length) {
-        console.log('잘못된 입력입니다.');
+    if (filenames.length) {
+        for(const i in filenames){
+            console.log(`  ${parseInt(i)+1}: ${filenames[i]}`);
+        }
+        console.log('');
+        const i = parseInt(await rl.question(`설치할 모드팩을 선택해 주세요. (1 ~ ${filenames.length}) : `));
+        if (isNaN(i) || i < 1 || i > filenames.length) {
+            console.log('잘못된 입력입니다.');
+            return await selectModPack(modPackPath);
+        }
+        return filenames[i-1]
+    } else {
+        await rl.question('확인되는 모드팩 파일이 존재하지 않습니다. (엔터를 눌러 다시 확인)')
         return await selectModPack(modPackPath);
     }
-    return filenames[i-1]
+
 }
 
 async function runJava(...args: string[]) {
